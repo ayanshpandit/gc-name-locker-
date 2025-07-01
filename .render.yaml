@@ -1,7 +1,6 @@
 services:
   - type: web
-    name: messenger-group-locker
+    name: gc-name-locker
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python main.py"
-    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
