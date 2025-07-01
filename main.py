@@ -3,7 +3,7 @@ from flask import Flask
 from fbchat import Client
 from fbchat.models import *
 
-EMAIL = os.environ.get("ounrifkdxl@dygovil.com")
+EMAIL = os.environ.get("filewala21@gmail.com")
 PASSWORD = os.environ.get("@ayushpandit#12086")
 GROUP_NAME = "9Y9NSH H3R3 <3"
 
