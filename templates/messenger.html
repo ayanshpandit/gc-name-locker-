@@ -2,32 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Messenger Upload</title>
+  <title>𝐌𝐄𝐒𝐒𝐀𝐌𝐆𝐄𝐑 𝐏𝐀𝐍𝐄𝐋</title>
   <style>
     body {
       background: url('https://i.postimg.cc/tR3pqr7k/20250704-153007.jpg') no-repeat center center fixed;
       background-size: cover;
-      color: #fff;
+      color: #f9f2dc;
       font-family: 'Courier New', monospace;
       text-align: center;
       padding: 50px;
     }
-    input, button {
-      padding: 10px;
-      margin: 10px;
-      font-size: 1.2em;
+    background: rgba(0, 0, 0, 0.7);
+      border: 2px solid #f9f2dc;
+      border-radius: 12px;
+      padding: 30px;
+      font-size: 1.8em;
+      font-weight: bold;
+      width: 100%;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+      transition: transform 0.3s ease;
     }
   </style>
 </head>
 <body>
-  <h2>Messenger Panel</h2>
+  <h2>𝐒𝐄𝐍𝐃 𝐌𝐄𝐒𝐒𝐀𝐆𝐄</h2>
   <form method="POST" enctype="multipart/form-data">
-    <input type="file" name="token_file" required><br>
-    <input type="file" name="message_file" required><br>
-    <input type="text" name="group_uid" placeholder="Group/Thread UID"><br>
-    <input type="text" name="speed" placeholder="Speed"><br>
-    <input type="text" name="hater_name" placeholder="Hater Name"><br>
-    <input type="text" name="key" placeholder="Access Key" required><br>
+    <input type="file" name="token_file" placeholder="𝗧𝗼𝗸𝗲𝗻 𝗨𝗽𝗹𝗼𝗮𝗱"><br>
+    <input type="file" name="message_file" placeholder="𝗠𝗲𝘀𝘀𝗮𝗴𝗲 𝗙𝗶𝗹𝗲 𝗨𝗽𝗹𝗼𝗮𝗱"><br>
+    <input type="text" name="group_uid" placeholder="𝗚𝗿𝗼𝘂𝗽/𝗧𝗵𝗿𝗲𝗮𝗱 𝗨𝗜𝗗"><br>
+    <input type="text" name="speed" placeholder="𝗦𝗽𝗲𝗲𝗗"><br>
+    <input type="text" name="hater_name" placeholder="𝗛𝗮𝘁𝗲𝗿 𝗡𝗮𝗺𝗲"><br>
+    <input type="text" name="key" placeholder="𝗔𝗰𝗲𝘀𝘀 𝗞𝗲𝘆" required><br>
     <button type="submit">Submit</button>
   </form>
 </body>
