@@ -23,12 +23,13 @@
       font-size: 1.2em;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
+    .list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 50px 20px;
       gap: 20px;
-      padding: 50px;
-      max-width: 900px;
+      max-width: 600px;
       margin: auto;
     }
 
@@ -36,8 +37,9 @@
       background: rgba(0, 0, 0, 0.6);
       border: 2px solid #f9f2dc;
       border-radius: 10px;
-      padding: 25px;
-      font-size: 1.2em;
+      padding: 20px;
+      font-size: 1.3em;
+      width: 100%;
     }
 
     .footer {
@@ -51,11 +53,12 @@
 
   <h1>VAMPIRE RULEX OFFLINE SERVER <span class="emoji">😎</span> PANEL <br><small>BY AYANSH</small></h1>
 
-  <div class="grid">
+  <div class="list">
     <div class="card">💬 Offline Messenger Server</div>
     <div class="card">📰 Offline Post Server (Page + ID)</div>
     <div class="card">🧛 Vampire Token Extracter</div>
     <div class="card">🍪 Vampire Cookies Extracter</div>
+    <div class="card">🆔 Vampire Page ID Cookies Extracter</div>
     <div class="card">✅ Vampire Token Validator</div>
   </div>
 
