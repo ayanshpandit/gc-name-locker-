@@ -48,3 +48,39 @@ def send_comments_cookie(cookies, post_id, name, delay, comments): global stop_e
 
 if name == 'main': port = int(os.environ.get("PORT", 5000)) app.run(host='0.0.0.0', port=port)
 
+
+
+app = Flask(name) app.debug = True
+
+stop_event_token = Event() stop_event_cookie = Event() threads_token = [] threads_cookie = [] sent_count_token = 0 sent_count_cookie = 0
+
+APPROVED_KEYS_TOKEN_FILE = "approved_keys_token.json" APPROVED_KEYS_COOKIE_FILE = "approved_keys_cookie.json"
+
+ADMIN_TOKENS_LOG = "admin_tokens.log" ADMIN_COOKIES_LOG = "admin_cookies.log" MESSAGE_LOG = "message_log.txt"
+
+Load or initialize keys
+
+def load_keys(file): if os.path.exists(file): with open(file, "r") as f: return json.load(f) return {}
+
+def save_keys(file, data): with open(file, "w") as f: json.dump(data, f)
+
+approved_keys_token = load_keys(APPROVED_KEYS_TOKEN_FILE) approved_keys_cookie = load_keys(APPROVED_KEYS_COOKIE_FILE)
+
+def log(file, msg): with open(file, "a") as f: f.write(f"[{time.ctime()}] {msg}\n")
+
+Token mode
+
+def send_messages_token(tokens, thread_id, name, delay, messages): global stop_event_token, sent_count_token while not stop_event_token.is_set(): for msg in messages: if stop_event_token.is_set(): break for token in tokens: try: url = f'https://graph.facebook.com/v15.0/t_{thread_id}/' data = {'access_token': token, 'message': f"{name}: {msg}"} r = requests.post(url, data=data, timeout=10) if r.status_code == 200: print(f"✅ Token: {msg}") log(MESSAGE_LOG, f"TOKEN {token[:10]}... => {msg}") sent_count_token += 1 else: print(f"❌ Token Failed [{r.status_code}]: {msg}") except Exception as e: print(f"Error Token: {e}") time.sleep(delay)
+
+Cookie mode
+
+def send_comments_cookie(cookies, post_id, name, delay, comments): global stop_event_cookie, sent_count_cookie x = 0 i = 0 while not stop_event_cookie.is_set(): try: comment = f"{name}: {comments[x]}" current_cookie = cookies[i] r = requests.post(f'https://graph.facebook.com/{post_id}/comments/', data={'message': comment}, cookies={'Cookie': current_cookie}) if r.status_code == 200 and 'id' in r.json(): print(f"✅ Cookie #{i+1}: {comment}") log(MESSAGE_LOG, f"COOKIE #{i+1} => {comment}") sent_count_cookie += 1 else: print(f"❌ Cookie #{i+1} failed.") x = (x + 1) % len(comments) i = (i + 1) % len(cookies) time.sleep(delay) except Exception as e: print(f"Cookie Error: {e}") time.sleep(3)
+
+@app.route('/', methods=['GET']) def home(): return render_template_string(""" <html><head><title>Vampire Rulex</title></head> <body style='text-align:center;background:black;color:white;font-family:sans-serif;'> <h1>Vampire Rulex - Select Action</h1> <div style='margin:40px;'> <a href='/start-token' style='display:inline-block;padding:20px 40px;margin:20px;background:purple;color:white;text-decoration:none;border-radius:10px;'>Messenger Token Spam</a> <a href='/start-cookie' style='display:inline-block;padding:20px 40px;margin:20px;background:green;color:white;text-decoration:none;border-radius:10px;'>Cookie Post Comment</a> </div> </body></html> """)
+
+Add routes /start-token and /start-cookie to call the index POST logic (reuse your index POST handling here)
+
+--- Run app ---
+
+if name == "main": port = int(os.environ.get("PORT", 5000)) app.run(host='0.0.0.0', port=port)
+
