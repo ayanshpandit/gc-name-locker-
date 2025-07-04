@@ -1,72 +1,87 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
+from flask import Flask, request, render_template, redirect, url_for, session
 import os
-import random
-import string
-from datetime import datetime
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'vampire_rulex_secret'
+app.secret_key = 'AY9NSH_SUPER_SECRET_KEY'  # Change this for security
 
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'txt'}
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'ay9nsh@123'  # 🔐 Change this
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+KEY_FILE = "approved_keys.txt"
 
-for folder in ['tokens', 'messages']:
-    os.makedirs(os.path.join(UPLOAD_FOLDER, folder), exist_ok=True)
+def read_keys():
+    if not os.path.exists(KEY_FILE):
+        return []
+    with open(KEY_FILE, "r") as f:
+        return f.read().splitlines()
 
-admin_keys = {'vRADMIN'}
-approved_keys = set()
+def save_keys(keys):
+    with open(KEY_FILE, "w") as f:
+        f.write("\n".join(keys))
 
-def generate_key():
-    return "vR" + ''.join(random.choices(string.digits, k=3))
+@app.route("/")
+def user_panel():
+    return render_template("message.html")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+@app.route("/start", methods=["POST"])
+def start_bot():
+    user_key = request.form.get("key")
+    approved_keys = read_keys()
 
-@app.route('/messenger', methods=['GET', 'POST'])
-def messenger():
-    if request.method == 'POST':
-        key = request.form.get("key")
-        if key not in approved_keys:
-            return "Key not approved."
-
-        token_file = request.files.get('token_file')
-        msg_file = request.files.get('message_file')
-        group_uid = request.form.get('group_uid')
-        speed = request.form.get('speed')
-        hater_name = request.form.get('hater_name')
-
-        if token_file and token_file.filename.endswith('.txt'):
-            token_path = os.path.join(UPLOAD_FOLDER, 'tokens', secure_filename(token_file.filename))
-            token_file.save(token_path)
-        if msg_file and msg_file.filename.endswith('.txt'):
-            msg_path = os.path.join(UPLOAD_FOLDER, 'messages', secure_filename(msg_file.filename))
-            msg_file.save(msg_path)
-
-        with open("action_log.txt", "a") as log:
-            log.write(f"[{datetime.now()}] KEY: {key} | GROUP: {group_uid} | SPEED: {speed} | HATER: {hater_name}\n")
-
-        return redirect(url_for('index'))
-
-    return render_template('messenger.html')
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    if request.method == 'POST':
-        new_key = request.form.get('key')
-        if new_key:
-            approved_keys.add(new_key)
-    return render_template('admin.html', keys=list(approved_keys))
-
-@app.route('/generate_key')
-def generate():
-    return generate_key()
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    if user_key not in approved_keys:
+        return "❌ Access Denied: Key not approved"
     
+    # 🔁 Your bot logic here
+    return "✅ Bot Started Successfully!"
+
+# ---------------- ADMIN PANEL ------------------
+
+@app.route("/admin", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session['admin'] = True
+            return redirect(url_for('admin_panel'))
+        else:
+            return "❌ Invalid credentials"
+    return '''
+    <form method="post">
+        <h2>Admin Login</h2>
+        <input type="text" name="username" placeholder="Username" required><br><br>
+        <input type="password" name="password" placeholder="Password" required><br><br>
+        <button type="submit">Login</button>
+    </form>
+    '''
+
+@app.route("/admin/panel")
+def admin_panel():
+    if not session.get('admin'):
+        return redirect(url_for('admin_login'))
+
+    keys = read_keys()
+    return render_template("admin.html", keys=keys)
+
+@app.route("/admin/add", methods=["POST"])
+def add_key():
+    if not session.get('admin'):
+        return redirect(url_for('admin_login'))
+
+    new_key = request.form.get("new_key").strip()
+    keys = read_keys()
+    if new_key and new_key not in keys:
+        keys.append(new_key)
+        save_keys(keys)
+    return redirect(url_for('admin_panel'))
+
+@app.route("/admin/delete/<key>")
+def delete_key(key):
+    if not session.get('admin'):
+        return redirect(url_for('admin_login'))
+
+    keys = read_keys()
+    if key in keys:
+        keys.remove(key)
+        save_keys(keys)
+    return redirect(url_for('admin_panel'))
