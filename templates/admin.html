@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Key Panel</title>
+</head>
+<body>
+  <h2>Admin Approval Panel</h2>
+  <form method="POST">
+    <input type="text" name="key" placeholder="Key to approve">
+    <button type="submit">Approve</button>
+  </form>
+  <h3>Approved Keys:</h3>
+  <ul>
+    {% for key in keys %}
+      <li>{{ key }}</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
