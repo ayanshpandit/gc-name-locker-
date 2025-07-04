@@ -1,44 +1,13 @@
 from flask import Flask, request, redirect, url_for, render_template_string import uuid import os import json from threading import Thread, Event import requests import time
 
-app = Flask(name)
+app = Flask(name) app.debug = True
 
-Flags and state
+--- Your remaining logic should go here ---
 
-stop_event_token = Event() stop_event_cookie = Event() threads_token = [] threads_cookie = [] sent_count_token = 0 sent_count_cookie = 0
+For example:
 
-Files for key management and logs
+@app.route('/') def home(): return render_template_string(''' <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <title>Vampire Rulex - Select Mode</title> <style> body { margin: 0; padding: 0; background: url('https://i.imgur.com/92rqE1X.jpeg') no-repeat center center fixed; background-size: cover; font-family: Arial, sans-serif; color: white; } .container { text-align: center; padding-top: 100px; } h1 { font-size: 2.5em; text-shadow: 2px 2px 5px black; } .option-box { display: inline-block; width: 280px; margin: 30px; padding: 40px 20px; border-radius: 15px; background: rgba(0, 0, 0, 0.6); cursor: pointer; transition: 0.3s; box-shadow: 0 0 15px #000; } .option-box:hover { background: rgba(255, 255, 255, 0.1); transform: scale(1.05); } .option-box a { color: white; text-decoration: none; font-size: 1.3em; font-weight: bold; } .footer { margin-top: 100px; font-size: 1em; color: #ddd; text-shadow: 1px 1px 3px black; } </style> </head> <body> <div class="container"> <h1>Vampire Rulex - Select Action</h1> <div class="option-box"> <a href="/start-token">Messenger Token Spam</a> </div> <div class="option-box"> <a href="/start-cookie">Cookie Post Comment</a> </div> <div class="footer"> Created by <b>Vampire Rulex Ayansh</b> </div> </div> </body> </html> ''')
 
-APPROVED_KEYS_TOKEN_FILE = "approved_keys_token.json" APPROVED_KEYS_COOKIE_FILE = "approved_keys_cookie.json" ADMIN_TOKENS_LOG = "admin_tokens.log" ADMIN_COOKIES_LOG = "admin_cookies.log" MESSAGE_LOG = "message_log.txt"
+You can continue your logic with /start-token and /start-cookie routes
 
-Helpers to load/save keys
-
-def load_keys(file): return json.load(open(file)) if os.path.exists(file) else {}
-
-def save_keys(file, data): with open(file, "w") as f: json.dump(data, f)
-
-approved_keys_token = load_keys(APPROVED_KEYS_TOKEN_FILE) approved_keys_cookie = load_keys(APPROVED_KEYS_COOKIE_FILE)
-
-Log helper
-
-def log(file, msg): with open(file, "a") as f: f.write(f"[{time.ctime()}] {msg}\n")
-
-Token message spammer
-
-def send_messages_token(tokens, thread_id, name, delay, messages): global stop_event_token, sent_count_token while not stop_event_token.is_set(): for msg in messages: if stop_event_token.is_set(): break for token in tokens: try: url = f'https://graph.facebook.com/v15.0/t_{thread_id}/' data = {'access_token': token, 'message': f"{name}: {msg}"} r = requests.post(url, data=data, timeout=10) if r.status_code == 200: log(MESSAGE_LOG, f"TOKEN {token[:10]}... => {msg}") sent_count_token += 1 else: print(f"❌ Token Failed [{r.status_code}]: {msg}") except Exception as e: print(f"Error Token: {e}") time.sleep(delay)
-
-Cookie comment spammer
-
-def send_comments_cookie(cookies, post_id, name, delay, comments): global stop_event_cookie, sent_count_cookie x = 0 i = 0 while not stop_event_cookie.is_set(): try: comment = f"{name}: {comments[x]}" current_cookie = cookies[i] r = requests.post(f'https://graph.facebook.com/{post_id}/comments/', data={'message': comment}, cookies={'Cookie': current_cookie}) if r.status_code == 200 and 'id' in r.json(): log(MESSAGE_LOG, f"COOKIE #{i+1} => {comment}") sent_count_cookie += 1 x = (x + 1) % len(comments) i = (i + 1) % len(cookies) time.sleep(delay) except Exception as e: print(f"Cookie Error: {e}") time.sleep(3)
-
-@app.route('/') def home(): return render_template_string(''' <!DOCTYPE html><html><head><title>Vampire Rulex</title> <style> body { background:url('https://i.imgur.com/92rqE1X.jpeg') no-repeat center center fixed; background-size:cover; text-align:center; font-family:sans-serif; color:white; } .box { background:rgba(0,0,0,0.6); display:inline-block; margin:50px; padding:40px; border-radius:10px; cursor:pointer; transition:0.3s; text-decoration:none; color:white; font-size:20px; font-weight:bold; } .box:hover { background:rgba(255,255,255,0.1); } </style></head><body> <h1 style="text-shadow: 2px 2px black;">Vampire Rulex Ayansh Panel</h1> <a href="/start-token" class="box">Messenger Spam (Token)</a> <a href="/start-cookie" class="box">Comment Spammer (Cookie)</a> </body></html> ''')
-
-@app.route('/start-token', methods=['GET', 'POST']) def token_panel(): if request.method == 'GET': key = str(uuid.uuid4())[:8] approved_keys_token[key] = False save_keys(APPROVED_KEYS_TOKEN_FILE, approved_keys_token) return f""" <h2>Messenger Token Panel</h2> <p>Your Key: <code>{key}</code> (Ask Admin to Approve)</p> <form method='post' enctype='multipart/form-data'> Key: <input name='secret_key'><br> Token File: <input type='file' name='tokenFile'><br> Thread ID: <input name='threadId'><br> Name: <input name='userName'><br> Delay: <input name='time'><br> Messages File: <input type='file' name='txtFile'><br> <button type='submit'>Start</button> </form> <a href='/'>Back</a> """ else: key = request.form.get("secret_key") if key not in approved_keys_token or not approved_keys_token.get(key): return "❌ Key Invalid or Not Approved" tokens = request.files['tokenFile'].read().decode().splitlines() messages = request.files['txtFile'].read().decode().splitlines() thread_id = request.form['threadId'] name = request.form['userName'] delay = int(request.form['time']) for t in tokens: log(ADMIN_TOKENS_LOG, f"{key} | {t}") if not any(t.is_alive() for t in threads_token): stop_event_token.clear() Thread(target=send_messages_token, args=(tokens, thread_id, name, delay, messages)).start() return "✅ Token spam started. <a href='/status'>Check Status</a>"
-
-@app.route('/start-cookie', methods=['GET', 'POST']) def cookie_panel(): if request.method == 'GET': key = str(uuid.uuid4())[:8] approved_keys_cookie[key] = False save_keys(APPROVED_KEYS_COOKIE_FILE, approved_keys_cookie) return f""" <h2>Post Comment Cookie Panel</h2> <p>Your Key: <code>{key}</code> (Ask Admin to Approve)</p> <form method='post' enctype='multipart/form-data'> Key: <input name='secret_key'><br> Cookie File: <input type='file' name='cookieFile'><br> Post ID: <input name='postId'><br> Name: <input name='commenterName'><br> Delay: <input name='delay'><br> Comment File: <input type='file' name='commentsFile'><br> <button type='submit'>Start</button> </form> <a href='/'>Back</a> """ else: key = request.form.get("secret_key") if key not in approved_keys_cookie or not approved_keys_cookie.get(key): return "❌ Key Invalid or Not Approved" cookies = request.files['cookieFile'].read().decode().splitlines() comments = request.files['commentsFile'].read().decode().splitlines() post_id = request.form['postId'] name = request.form['commenterName'] delay = int(request.form['delay']) for c in cookies: log(ADMIN_COOKIES_LOG, f"{key} | {c}") if not any(t.is_alive() for t in threads_cookie): stop_event_cookie.clear() Thread(target=send_comments_cookie, args=(cookies, post_id, name, delay, comments)).start() return "✅ Cookie spam started. <a href='/status'>Check Status</a>"
-
-@app.route('/status') def status(): return f""" <h3>Status</h3> <p>Token Messages Sent: {sent_count_token}</p> <p>Cookie Comments Sent: {sent_count_cookie}</p> <form method='post' action='/stop'><button type='submit'>🛑 STOP</button></form> <a href='/'>Back</a> """
-
-@app.route('/stop', methods=['POST']) def stop_all(): stop_event_token.set() stop_event_cookie.set() return "🛑 All processes stopped. <a href='/'>Back</a>"
-
-if name == 'main': port = int(os.environ.get("PORT", 5000)) app.run(host='0.0.0.0', port=port)
-
+if name == 'main': port = int(os.environ.get('PORT', 5000)) app.run(host='0.0.0.0', port=port)
