@@ -1,20 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Admin Key Panel</title>
+  <title>Admin Panel</title>
 </head>
 <body>
-  <h2>Admin Approval Panel</h2>
-  <form method="POST">
-    <input type="text" name="key" placeholder="Key to approve">
-    <button type="submit">Approve</button>
-  </form>
-  <h3>Approved Keys:</h3>
+  <h2>Approved Keys</h2>
   <ul>
     {% for key in keys %}
-      <li>{{ key }}</li>
+      <li>{{ key }} <a href="{{ url_for('delete_key', key=key) }}">❌ Remove</a></li>
     {% endfor %}
   </ul>
+
+  <form method="POST" action="/admin/add">
+    <input type="text" name="new_key" placeholder="Add new key" required>
+    <button type="submit">➕ Add Key</button>
+  </form>
+
+  <br><a href="/">🔙 Back to User Panel</a>
 </body>
 </html>
