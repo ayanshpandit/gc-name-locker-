@@ -49,8 +49,7 @@ def messenger():
             msg_file.save(msg_path)
 
         with open("action_log.txt", "a") as log:
-            log.write(f"[{datetime.now()}] KEY: {key} | GROUP: {group_uid} | SPEED: {speed} | HATER: {hater_name}
-")
+            log.write(f"[{datetime.now()}] KEY: {key} | GROUP: {group_uid} | SPEED: {speed} | HATER: {hater_name}\n")
 
         return redirect(url_for('index'))
 
@@ -70,3 +69,4 @@ def generate():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
