@@ -1,96 +1,141 @@
-<!-- ✅ Full Final message.html File --><!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WeLcome Vampire RuLex</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Messenger Bot</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
       margin: 0;
       padding: 0;
-      background: url('https://i.postimg.cc/tR3pqr7k/20250704-153007.jpg') no-repeat center center fixed;
+      font-family: 'Segoe UI', sans-serif;
+      background: url('/static/background.jpg') no-repeat center center fixed;
       background-size: cover;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .panel {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.3);
+      width: 360px;
       color: #fff;
-    }.container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 30px;
-  background-color: rgba(0, 0, 0, 0.6);
-  border-radius: 15px;
-  box-shadow: 0 0 10px #000;
-}
+    }
 
-label {
-  font-weight: bold;
-  font-size: 1.2em;
-  display: block;
-  margin-top: 20px;
-  margin-bottom: 8px;
-}
+    .panel h2 {
+      text-align: center;
+      margin-bottom: 25px;
+    }
 
-input[type="file"],
-input[type="text"] {
-  width: 100%;
-  padding: 10px;
-  background-color: white;
-  border: 2px solid red;
-  border-radius: 8px;
-  font-size: 1.1em;
-  color: #000;
-}
+    .form-group {
+      margin-bottom: 18px;
+    }
 
-input[readonly] {
-  background-color: #f5f5f5;
-  color: #555;
-}
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
 
-button {
-  margin-top: 20px;
-  padding: 12px 20px;
-  font-size: 1.2em;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
+    .form-group input[type="file"],
+    .form-group input[type="text"],
+    .form-group input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #2a2f33;
+      color: #fff;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
 
-button:hover {
-  background-color: #218838;
-}
+    .form-group input[type="file"]::file-selector-button {
+      padding: 6px 12px;
+      background-color: #444;
+      border: none;
+      color: #fff;
+      border-radius: 5px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
 
+    .submit-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #2979ff;
+      border: none;
+      color: white;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .submit-btn:hover {
+      background-color: #1e5fe0;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2 style="text-align:center; font-size: 1.8em; font-weight: bold; margin-bottom: 20px;">Welcome Vampire Rulee</h2>
-    <form action="/send" method="post" enctype="multipart/form-data"><label for="token_file">📁 <b>Upload Token File</b></label>
-  <input type="file" name="token_file" required>
 
-  <label for="message_file">📁 <b>Upload Message File</b></label>
-  <input type="file" name="message_file" required>
+  <div class="panel">
+    <h2>Messenger Bot</h2>
+    <form method="POST" enctype="multipart/form-data" action="/start">
 
-  <label for="group_uid">🧾 <b>Group UID / Thread ID</b></label>
-  <input type="text" name="group_uid" placeholder="Enter Group UID or Thread ID" required>
+      <div class="form-group">
+        <label for="token">Upload Token File</label>
+        <input type="file" name="token" id="token" required>
+      </div>
 
-  <label for="speed">⏩ <b>Speed (Seconds)</b></label>
-  <input type="text" name="speed" placeholder="300" required>
+      <div class="form-group">
+        <label for="message">Upload Message File</label>
+        <input type="file" name="message" id="message" required>
+      </div>
 
-  <label for="hater_name">🔥 <b>Hater Name Prefix</b></label>
-  <input type="text" name="hater_name" placeholder="eg. D3V1L">
+      <div class="form-group">
+        <label for="thread_id">Thread ID / Group UID</label>
+        <input type="text" name="thread_id" id="thread_id" placeholder="Eg: 1234567890" required>
+      </div>
 
-  <label for="key">🔐 <b>Access Key (Auto Generated)</b></label>
-  <input type="text" name="key" id="accessKey" readonly>
+      <div class="form-group">
+        <label for="speed">Speed (in seconds)</label>
+        <input type="number" name="speed" id="speed" value="5" min="1" required>
+      </div>
 
-  <button type="submit">🚀 Submit</button>
-</form>
+      <div class="form-group">
+        <label for="key">Your Key (Auto Generated)</label>
+        <input type="text" name="key" id="key" readonly required>
+      </div>
 
-  </div>  <script>
+      <button type="submit" class="submit-btn">Submit</button>
+    </form>
+  </div>
+
+  <script>
     function generateKey() {
-      const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      const key = 'vR' + rand;
-      document.getElementById('accessKey').value = key;
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let key = '';
+      for (let i = 0; i < 16; i++) {
+        key += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return key;
     }
-    window.onload = generateKey;
-  </script></body>
+
+    window.onload = function () {
+      let storedKey = localStorage.getItem("userKey");
+      if (!storedKey) {
+        storedKey = generateKey();
+        localStorage.setItem("userKey", storedKey);
+      }
+      document.getElementById("key").value = storedKey;
+    };
+  </script>
+
+</body>
 </html>
