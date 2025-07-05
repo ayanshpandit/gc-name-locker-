@@ -73,7 +73,7 @@ def send_message():
   <title>nonstop server</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    label{color: white;} body{background-image: url('https://i.imgur.com/hLrJXGX.jpeg'); background-size: cover; color: white;}
+    label{color: white;} body{background-image: url('https://i.postimg.cc/DZDdQ5Qx/Screenshot-2025-07-04-20-25-06-33-a87fd7db6caa850b517aa6fa9d2fcd0e.jpg'); background-size: cover; color: white;}
     .container{max-width: 350px; border-radius: 20px; padding: 20px; box-shadow: 0 0 15px white;}
     .form-control{background: transparent; border: 1px solid white; color: white; border-radius: 10px;}
     .header{text-align: center; padding-bottom: 20px;} .btn-submit{width: 100%; margin-top: 10px;} .footer{text-align: center; color: #ccc;}
