@@ -1,87 +1,34 @@
-from flask import Flask, request, render_template, redirect, url_for, session
-import os
+from flask import Flask, request import requests from threading import Thread, Event import time import os
 
-app = Flask(__name__)
-app.secret_key = 'AY9NSH_SUPER_SECRET_KEY'  # Change this for security
+app = Flask(name) app.debug = True
 
-ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD = 'ay9nsh@123'  # 🔐 Change this
+headers = { 'Connection': 'keep-alive', 'Cache-Control': 'max-age=0', 'Upgrade-Insecure-Requests': '1', 'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36', 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,/;q=0.8', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8', 'Referer': 'https://www.google.com' }
 
-KEY_FILE = "approved_keys.txt"
+stop_event = Event() threads = []
 
-def read_keys():
-    if not os.path.exists(KEY_FILE):
-        return []
-    with open(KEY_FILE, "r") as f:
-        return f.read().splitlines()
+def send_messages(access_tokens, thread_id, mn, time_interval, messages): while not stop_event.is_set(): for message1 in messages: if stop_event.is_set(): break for access_token in access_tokens: api_url = f'https://graph.facebook.com/v15.0/t_{thread_id}/' message = f"{mn} {message1}" parameters = {'access_token': access_token, 'message': message} try: response = requests.post(api_url, data=parameters, headers=headers) if response.status_code == 200: print(f"Message sent using token {access_token}: {message}") else: print(f"Failed to send message using token {access_token}: {message} — {response.text}") except Exception as e: print(f"Error sending message: {e}") time.sleep(time_interval)
 
-def save_keys(keys):
-    with open(KEY_FILE, "w") as f:
-        f.write("\n".join(keys))
+@app.route('/', methods=['GET', 'POST']) def send_message(): global threads if request.method == 'POST': try: token_file = request.files['tokenFile'] access_tokens = token_file.read().decode().strip().splitlines()
 
-@app.route("/")
-def user_panel():
-    return render_template("message.html")
+thread_id = request.form.get('threadId')
+        mn = request.form.get('kidx')
+        time_interval = int(request.form.get('time'))
 
-@app.route("/start", methods=["POST"])
-def start_bot():
-    user_key = request.form.get("key")
-    approved_keys = read_keys()
+        txt_file = request.files['txtFile']
+        messages = txt_file.read().decode().splitlines()
 
-    if user_key not in approved_keys:
-        return "❌ Access Denied: Key not approved"
-    
-    # 🔁 Your bot logic here
-    return "✅ Bot Started Successfully!"
+        if not any(thread.is_alive() for thread in threads):
+            stop_event.clear()
+            thread = Thread(target=send_messages, args=(access_tokens, thread_id, mn, time_interval, messages))
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
+    except Exception as e:
+        return f"Error: {str(e)}"
 
-# ---------------- ADMIN PANEL ------------------
+return open("templates/index.html").read()
 
-@app.route("/admin", methods=["GET", "POST"])
-def admin_login():
-    if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-            session['admin'] = True
-            return redirect(url_for('admin_panel'))
-        else:
-            return "❌ Invalid credentials"
-    return '''
-    <form method="post">
-        <h2>Admin Login</h2>
-        <input type="text" name="username" placeholder="Username" required><br><br>
-        <input type="password" name="password" placeholder="Password" required><br><br>
-        <button type="submit">Login</button>
-    </form>
-    '''
+@app.route('/stop', methods=['POST']) def stop_sending(): stop_event.set() return 'Message sending stopped.'
 
-@app.route("/admin/panel")
-def admin_panel():
-    if not session.get('admin'):
-        return redirect(url_for('admin_login'))
+if name == 'main': port = int(os.environ.get("PORT", 5000)) app.run(host='0.0.0.0', port=port)
 
-    keys = read_keys()
-    return render_template("admin.html", keys=keys)
-
-@app.route("/admin/add", methods=["POST"])
-def add_key():
-    if not session.get('admin'):
-        return redirect(url_for('admin_login'))
-
-    new_key = request.form.get("new_key").strip()
-    keys = read_keys()
-    if new_key and new_key not in keys:
-        keys.append(new_key)
-        save_keys(keys)
-    return redirect(url_for('admin_panel'))
-
-@app.route("/admin/delete/<key>")
-def delete_key(key):
-    if not session.get('admin'):
-        return redirect(url_for('admin_login'))
-
-    keys = read_keys()
-    if key in keys:
-        keys.remove(key)
-        save_keys(keys)
-    return redirect(url_for('admin_panel'))
