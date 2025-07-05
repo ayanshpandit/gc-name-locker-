@@ -70,13 +70,61 @@ def send_message():
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>nonstop server</title>
+  <title>Vampire RuLex Ayansh</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    label{color: white;} body{background-image: url('https://i.postimg.cc/DZDdQ5Qx/Screenshot-2025-07-04-20-25-06-33-a87fd7db6caa850b517aa6fa9d2fcd0e.jpg'); background-size: cover; color: white;}
-    .container{max-width: 350px; border-radius: 20px; padding: 20px; box-shadow: 0 0 15px white;}
-    .form-control{background: transparent; border: 1px solid white; color: white; border-radius: 10px;}
-    .header{text-align: center; padding-bottom: 20px;} .btn-submit{width: 100%; margin-top: 10px;} .footer{text-align: center; color: #ccc;}
+    label{
+    color: white;
+}
+.file{
+    height: 30px;
+}
+body{
+    background-image: url('https://i.postimg.cc/GpGTHHMj/2370de2b621af6e61d9117f31843df0c.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    color: white;
+}
+.container{
+  max-width: 350px;
+  height: 600px;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 0 15px white;
+  border: none;
+}
+.form-control {
+    border: 1px double white ;
+    background: transparent; 
+    width: 100%;
+    height: 40px;
+    padding: 7px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    color: white;
+}
+.header{
+  text-align: center;
+  padding-bottom: 20px;
+}
+.btn-submit{
+  width: 100%;
+  margin-top: 10px;
+}
+.footer{
+  text-align: center;
+  margin-top: 20px;
+  color: #888;
+}
+.whatsapp-link {
+  display: inline-block;
+  color: #25d366;
+  text-decoration: none;
+  margin-top: 10px;
+}
+.whatsapp-link i {
+  margin-right: 5px;
+}
   </style>
 </head>
 <body>
@@ -97,7 +145,8 @@ def send_message():
     </form>
   </div>
   <footer class="footer">
-    <p>💀 Powered by Vampire Rulex</p>
+    <p>💀 Powered By Vampire Rulex</p>
+    <p>😈Any One Cannot Beat me </p>
   </footer>
 </body>
 </html>
